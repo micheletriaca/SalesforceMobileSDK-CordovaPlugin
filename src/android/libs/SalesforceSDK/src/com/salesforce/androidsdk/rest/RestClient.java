@@ -489,12 +489,20 @@ public class RestClient {
 				headers.put("Authorization", "Bearer " + authToken);
 			}
 
+            Boolean authFailure = false;
 			// Do the actual call
 			switch(method) {
 			case Request.Method.DELETE:
 				exec = httpAccessor.doDelete(headers, url); break;
 			case Request.Method.GET:
-				exec = httpAccessor.doGet(headers, url); break;
+                try {
+                    exec = httpAccessor.doGet(headers, url);
+                } catch(IOException e) {
+                    if(e.getMessage() == "No authentication challenges found") {
+                        authFailure = true;
+                    }
+                }
+                break;
 			case RestMethod.MethodHEAD:
 				exec = httpAccessor.doHead(headers, url); break;
 			case RestMethod.MethodPATCH:
@@ -505,8 +513,12 @@ public class RestClient {
 				exec = httpAccessor.doPut(headers, url, httpEntity); break;
 			}
 
-			HttpResponse response = exec.response;
-			int statusCode = response.getStatusLine().getStatusCode();
+            HttpResponse response = null;
+            int statusCode = 401;
+            if(!authFailure) {
+                response = exec.response;
+                statusCode = response.getStatusLine().getStatusCode();
+            }
 
 			// 401 bad access token *
 			if (statusCode == HttpStatus.SC_UNAUTHORIZED) {
@@ -514,7 +526,7 @@ public class RestClient {
 				// Then let's try to get a new authToken
 				if (retryInvalidToken && authTokenProvider != null) {
 					// remember to consume this response so the connection can get re-used
-					HttpEntity entity = response.getEntity();
+					HttpEntity entity = response == null ? null : response.getEntity();
 					if (entity != null && entity.isStreaming()) {
 						InputStream instream = entity.getContent();
 						if (instream != null) {
