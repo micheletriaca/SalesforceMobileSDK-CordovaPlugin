@@ -41,7 +41,7 @@ import android.content.Context;
 import android.database.Cursor;
 
 import com.salesforce.androidsdk.accounts.UserAccount;
-import com.salesforce.androidsdk.smartstore.app.SalesforceSDKManagerWithSmartStore;
+import com.salesforce.androidsdk.smartstore.app.SmartStoreSDKManager;
 import com.salesforce.androidsdk.smartstore.store.SmartStore.SmartStoreException;
 import com.salesforce.androidsdk.smartstore.store.SmartStore.Type;
 
@@ -84,6 +84,9 @@ public class DBHelper {
 	// Cache of soup name to index specs
 	private Map<String, IndexSpec[]> soupNameToIndexSpecsMap = new HashMap<String, IndexSpec[]>();
 
+	// Cache of soup name to boolean indicating if soup uses FTS
+	private Map<String, Boolean> soupNameToHasFTS = new HashMap<String, Boolean>();
+
 	// Cache of table name to get-next-id compiled statements
 	private Map<String, SQLiteStatement> tableNameToNextIdStatementsMap = new HashMap<String, SQLiteStatement>();
 
@@ -111,10 +114,11 @@ public class DBHelper {
 
 	/**
 	 * @param soupName
-	 * @param tableName
+	 * @param indexSpecs
 	 */
 	public void cacheIndexSpecs(String soupName, IndexSpec[] indexSpecs) {
 		soupNameToIndexSpecsMap.put(soupName, indexSpecs.clone());
+		soupNameToHasFTS.put(soupName, IndexSpec.hasFTS(indexSpecs));
 	}
 
 	/**
@@ -123,6 +127,14 @@ public class DBHelper {
 	 */
 	public IndexSpec[] getCachedIndexSpecs(String soupName) {
 		return soupNameToIndexSpecsMap.get(soupName);
+	}
+
+	/**
+	 * @param soupName
+	 * @return
+	 */
+	public Boolean getCachedHasFTS(String soupName) {
+		return soupNameToHasFTS.get(soupName);
 	}
 
 	/**
@@ -143,6 +155,7 @@ public class DBHelper {
 		}
 		soupNameToTableNamesMap.remove(soupName);
 		soupNameToIndexSpecsMap.remove(soupName);
+		soupNameToHasFTS.remove(soupName);
 	}
 
 	private void cleanupRawCountSqlToStatementMaps(String tableName) {
@@ -227,7 +240,7 @@ public class DBHelper {
 	/**
 	 * Does a count for a raw count query
 	 * @param db
-	 * @param sql
+	 * @param countSql
 	 * @param whereArgs
 	 * @return
 	 */
@@ -321,7 +334,7 @@ public class DBHelper {
 	 */
 	public synchronized void reset(Context ctx) {
 		clearMemoryCache();
-		final List<UserAccount> accounts = SalesforceSDKManagerWithSmartStore.getInstance().getUserAccountManager().getAuthenticatedUsers();
+		final List<UserAccount> accounts = SmartStoreSDKManager.getInstance().getUserAccountManager().getAuthenticatedUsers();
 		if (accounts != null) {
 			for (final UserAccount account : accounts) {
 				reset(ctx, account);
@@ -418,7 +431,17 @@ public class DBHelper {
         }
     }
 
-    /**
+	/**
+	 * @param db
+	 * @param soupName
+	 * @return true if soup has full-text-search index
+	 */
+	public boolean hasFTS(SQLiteDatabase db, String soupName) {
+		getIndexSpecs(db, soupName); // will populate cache if needed
+		return getCachedHasFTS(soupName);
+	}
+
+	/**
      * Return table name for a given soup or null if the soup doesn't exist
      * @param db
      * @param soupName

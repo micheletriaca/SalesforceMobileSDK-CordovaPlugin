@@ -51,38 +51,6 @@ extern NSString * const kSFLoginHostChangedNotificationOriginalHostKey;
  */
 extern NSString * const kSFLoginHostChangedNotificationUpdatedHostKey;
 
-/**
- * Data class for providing information about a login host change.
- */
-@interface SFLoginHostUpdateResult : NSObject
-
-/**
- * The original login host, prior to the change.
- */
-@property (nonatomic, readonly) NSString *originalLoginHost;
-
-/**
- * The updated (new) login host, after the change.
- */
-@property (nonatomic, readonly) NSString *updatedLoginHost;
-
-/**
- * Whether or not the login host actually changed.
- */
-@property (nonatomic, readonly) BOOL loginHostChanged;
-
-/**
- * Designated intializer for the data object.
- * @param originalLoginHost The login host prior to change.
- * @param updatedLoginHost The new login host after the change.
- * @param loginHostChanged Whether or not the login host actually changed.
- */
-- (id)initWithOrigHost:(NSString *)originalLoginHost
-           updatedHost:(NSString *)updatedLoginHost
-           hostChanged:(BOOL)loginHostChanged;
-
-@end
-
 @class SFUserAccountManager;
 
 /**
@@ -133,6 +101,29 @@ extern NSString * const kSFLoginHostChangedNotificationUpdatedHostKey;
 /** The "temporary" account user.  Useful for determining whether there's a valid user context.
  */
 @property (nonatomic, readonly) SFUserAccount *temporaryUser;
+
+/** Returns YES if the application supports anonymous user, no otherwise.
+ 
+ Note: the application must add the kSFUserAccountSupportAnonymousUsage value
+ to its Info.plist file in order to enable this flag.
+ */
+@property (nonatomic, readonly) BOOL supportsAnonymousUser;
+
+/** Returns YES if the application wants the anonymous user to be
+  created automatically at startup, no otherwise.
+  
+  Note: the application must add the kSFUserAccountSupportAnonymousUsage value
+  to its Info.plist file in order to enable this flag.
+  */
+@property (nonatomic, readonly) BOOL autocreateAnonymousUser;
+
+/** Returns the anonymous user or nil if none exists
+  */
+@property (nonatomic, strong, readonly) SFUserAccount *anonymousUser;
+
+/** Returns YES if the current user is anonymous, no otherwise
+  */
+@property (nonatomic, readonly, getter=isCurrentUserAnonymous) BOOL currentUserAnonymous;
 
 /**  Convenience property to retrieve the current user's identity.
  */
@@ -223,13 +214,6 @@ extern NSString * const kSFLoginHostChangedNotificationUpdatedHostKey;
  */
 - (void)removeDelegate:(id<SFUserAccountManagerDelegate>)delegate;
 
-/**
- * Synchronizes the app-level login host setting with the value in app settings.
- * @return SFLoginHostUpdateResult object containing the original hostname, the new hostname
- * (possibly the same), and whether or not the hostname changed.
- */
-- (SFLoginHostUpdateResult *)updateLoginHost;
-
 /** Loads all the accounts.
  @param error On output, the error if the return value is NO
  @return YES if the accounts were loaded properly, NO in case of error
@@ -246,6 +230,13 @@ extern NSString * const kSFLoginHostChangedNotificationUpdatedHostKey;
  Otherwise, use `login` to allow SFUserAccountManager to automatically create an account when necessary.
  */
 - (SFUserAccount*)createUserAccount;
+
+/** This method ensures the anonymous user exists and if not, creates the anonymous
+ user and saves it with the other users. This method doesn't change the current user.
+ 
+ Note: this method is invoked automatically if `autocreateAnonymousUser` returns YES.
+ */
+- (void)enableAnonymousAccount;
 
 /** Allows you to lookup the user account associated with a given user identity.
  */
@@ -283,9 +274,28 @@ extern NSString * const kSFLoginHostChangedNotificationUpdatedHostKey;
 
 /** Invoke this method to apply the specified credentials to the
  current user. If no user exists, a new one is created.
+ This will post user update notification.
  @param credentials The credentials to apply
  */
 - (void)applyCredentials:(SFOAuthCredentials*)credentials;
+
+/** Invoke this method to apply the specified id data to the
+ current user. This will post user update notification.
+ @param credentials The id data to apply
+ */
+- (void)applyIdData:(SFIdentityData *)idData;
+
+/** This method will selectively update the custom attributes identity data for the current user.
+ Other identity data will not be impacted.
+ @param customAttributes The new custom attributes data to update in the identity data.
+ */
+- (void)applyIdDataCustomAttributes:(NSDictionary *)customAttributes;
+
+/** This method will selectively update the custom permissions identity data for the current user.
+ Other identity data will not be impacted.
+ @param customPermissions The new custom permissions data to update in the identity data.
+ */
+- (void)applyIdDataCustomPermissions:(NSDictionary *)customPermissions;
 
 /** Apply custom data to the SFUserAccount that can be
  accessed outside that user's sandbox. This data will be persisted

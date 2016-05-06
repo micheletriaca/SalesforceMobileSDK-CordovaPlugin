@@ -70,6 +70,12 @@ public class AuthenticatorService extends Service {
     public static final String KEY_CLIENT_SECRET = "clientSecret";
     public static final String KEY_COMMUNITY_ID = "communityId";
     public static final String KEY_COMMUNITY_URL = "communityUrl";
+    public static final String KEY_EMAIL = "email";
+    public static final String KEY_FIRST_NAME = "first_name";
+    public static final String KEY_LAST_NAME = "last_name";
+    public static final String KEY_DISPLAY_NAME = "display_name";
+    public static final String KEY_PHOTO_URL = "photoUrl";
+    public static final String KEY_THUMBNAIL_URL = "thumbnailUrl";
 
     private Authenticator getAuthenticator() {
         if (authenticator == null)
@@ -109,7 +115,6 @@ public class AuthenticatorService extends Service {
                         String[] requiredFeatures,
                         Bundle options)
                 throws NetworkErrorException {
-            // Log.i("Authenticator:addAccount", "Options: " + options);
         	if (isAddFromSettings(options)) {
         		options.putAll(SalesforceSDKManager.getInstance().getLoginOptions().asBundle());
         	}
@@ -121,7 +126,8 @@ public class AuthenticatorService extends Service {
         	return options.containsKey(ANDROID_PACKAGE_NAME) && options.getString(ANDROID_PACKAGE_NAME).equals(SETTINGS_PACKAGE_NAME);
 		}
 
-        @Override
+        @SuppressWarnings("deprecation")
+		@Override
         public Bundle getAccountRemovalAllowed(AccountAuthenticatorResponse response, Account account) {
             final Bundle result = new Bundle();
             final ActivityManager manager = (ActivityManager) context.getSystemService(ACTIVITY_SERVICE);
@@ -135,6 +141,12 @@ public class AuthenticatorService extends Service {
              * gets a list of running tasks and get the topmost activity on
              * the task in focus. If the call is coming from the Settings app,
              * the topmost activity's package will be the Settings app.
+             *
+             * FIXME: The following piece of code does nothing on Lollipop and
+             * above, since Google has revoked the ability to get the list of
+             * running tasks outside of the application stack. We'll need to
+             * figure out a different strategy to handle this. One approach
+             * is to launch a custom logout flow for 'Settings' (if that's possible).
              */
             boolean isNotRemoveFromSettings = true;
             if (manager != null) {
@@ -154,8 +166,6 @@ public class AuthenticatorService extends Service {
 
 		/**
          * Uses the refresh token to get a new access token.
-         * Remember that the authenticator runs under its own separate process, so if you want to debug you
-         * need to attach to the :auth process, and not the main chatter process.
          */
         @Override
         public Bundle getAuthToken(
@@ -172,6 +182,28 @@ public class AuthenticatorService extends Service {
             final String userId = SalesforceSDKManager.decryptWithPasscode(mgr.getUserData(account, AuthenticatorService.KEY_USER_ID), passcodeHash);
             final String orgId = SalesforceSDKManager.decryptWithPasscode(mgr.getUserData(account, AuthenticatorService.KEY_ORG_ID), passcodeHash);
             final String username = SalesforceSDKManager.decryptWithPasscode(mgr.getUserData(account, AuthenticatorService.KEY_USERNAME), passcodeHash);
+            final String lastName = SalesforceSDKManager.decryptWithPasscode(mgr.getUserData(account, AuthenticatorService.KEY_LAST_NAME), passcodeHash);
+            final String email = SalesforceSDKManager.decryptWithPasscode(mgr.getUserData(account, AuthenticatorService.KEY_EMAIL), passcodeHash);
+            final String encFirstName = mgr.getUserData(account, AuthenticatorService.KEY_FIRST_NAME);
+            String firstName = null;
+            if (encFirstName != null) {
+                 firstName = SalesforceSDKManager.decryptWithPasscode(encFirstName, passcodeHash);
+            }
+            final String encDisplayName = mgr.getUserData(account, AuthenticatorService.KEY_DISPLAY_NAME);
+            String displayName = null;
+            if (encDisplayName != null) {
+                displayName = SalesforceSDKManager.decryptWithPasscode(encDisplayName, passcodeHash);
+            }
+            final String encPhotoUrl = mgr.getUserData(account, AuthenticatorService.KEY_PHOTO_URL);
+            String photoUrl = null;
+            if (encPhotoUrl != null) {
+                photoUrl = SalesforceSDKManager.decryptWithPasscode(encPhotoUrl, passcodeHash);
+            }
+            final String encThumbnailUrl = mgr.getUserData(account, AuthenticatorService.KEY_THUMBNAIL_URL);
+            String thumbnailUrl = null;
+            if (encThumbnailUrl != null) {
+                thumbnailUrl = SalesforceSDKManager.decryptWithPasscode(encThumbnailUrl, passcodeHash);
+            }
             final String encClientSecret = mgr.getUserData(account, AuthenticatorService.KEY_CLIENT_SECRET);
             String clientSecret = null;
             if (encClientSecret != null) {
@@ -204,11 +236,33 @@ public class AuthenticatorService extends Service {
                 resBundle.putString(AccountManager.KEY_ACCOUNT_TYPE, account.type);
                 resBundle.putString(AccountManager.KEY_AUTHTOKEN, tr.authToken);
                 resBundle.putString(AuthenticatorService.KEY_LOGIN_URL, SalesforceSDKManager.encryptWithPasscode(loginServer, passcodeHash));
-                resBundle.putString(AuthenticatorService.KEY_INSTANCE_URL, SalesforceSDKManager.encryptWithPasscode(instServer, passcodeHash));
+                resBundle.putString(AuthenticatorService.KEY_INSTANCE_URL, SalesforceSDKManager.encryptWithPasscode(tr.instanceUrl, passcodeHash));
                 resBundle.putString(AuthenticatorService.KEY_CLIENT_ID, SalesforceSDKManager.encryptWithPasscode(clientId, passcodeHash));
                 resBundle.putString(AuthenticatorService.KEY_USERNAME, SalesforceSDKManager.encryptWithPasscode(username, passcodeHash));
                 resBundle.putString(AuthenticatorService.KEY_USER_ID, SalesforceSDKManager.encryptWithPasscode(userId, passcodeHash));
                 resBundle.putString(AuthenticatorService.KEY_ORG_ID, SalesforceSDKManager.encryptWithPasscode(orgId, passcodeHash));
+                resBundle.putString(AuthenticatorService.KEY_LAST_NAME, SalesforceSDKManager.encryptWithPasscode(lastName, passcodeHash));
+                resBundle.putString(AuthenticatorService.KEY_EMAIL, SalesforceSDKManager.encryptWithPasscode(email, passcodeHash));
+                String encrFirstName = null;
+                if (firstName != null) {
+                    encrFirstName = SalesforceSDKManager.encryptWithPasscode(firstName, passcodeHash);
+                }
+                resBundle.putString(AuthenticatorService.KEY_FIRST_NAME, encrFirstName);
+                String encrDisplayName = null;
+                if (displayName != null) {
+                    encrDisplayName = SalesforceSDKManager.encryptWithPasscode(displayName, passcodeHash);
+                }
+                resBundle.putString(AuthenticatorService.KEY_DISPLAY_NAME, encrDisplayName);
+                String encrPhotoUrl = null;
+                if (photoUrl != null) {
+                    encrPhotoUrl = SalesforceSDKManager.encryptWithPasscode(photoUrl, passcodeHash);
+                }
+                resBundle.putString(AuthenticatorService.KEY_PHOTO_URL, encrPhotoUrl);
+                String encrThumbnailUrl = null;
+                if (thumbnailUrl != null) {
+                    encrThumbnailUrl = SalesforceSDKManager.encryptWithPasscode(thumbnailUrl, passcodeHash);
+                }
+                resBundle.putString(AuthenticatorService.KEY_THUMBNAIL_URL, encrThumbnailUrl);
                 String encrClientSecret = null;
                 if (clientSecret != null) {
                     encrClientSecret = SalesforceSDKManager.encryptWithPasscode(clientSecret, passcodeHash);
@@ -224,7 +278,6 @@ public class AuthenticatorService extends Service {
                 	encrCommunityUrl = SalesforceSDKManager.encryptWithPasscode(communityUrl, passcodeHash);
                 }
                 resBundle.putString(AuthenticatorService.KEY_COMMUNITY_URL, encrCommunityUrl);
-                // Log.i("Authenticator:getAuthToken", "Returning auth bundle for " + account.name);
             } catch (ClientProtocolException e) {
                 Log.w("Authenticator:getAuthToken", "", e);
                 throw new NetworkErrorException(e);
@@ -243,7 +296,6 @@ public class AuthenticatorService extends Service {
                 resBundle.putString(AccountManager.KEY_ERROR_CODE, e.response.error);
                 resBundle.putString(AccountManager.KEY_ERROR_MESSAGE, e.response.errorDescription);
             }
-            // Log.i("Authenticator:getAuthToken", "Result: " + resBundle);
             return resBundle;
         }
 

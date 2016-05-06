@@ -26,17 +26,11 @@
  */
 package com.salesforce.androidsdk.auth;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import android.net.Uri;
+import android.text.TextUtils;
+import android.util.Log;
+
+import com.salesforce.androidsdk.auth.HttpAccess.Execution;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -48,11 +42,17 @@ import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import android.net.Uri;
-import android.text.TextUtils;
-import android.util.Log;
-
-import com.salesforce.androidsdk.auth.HttpAccess.Execution;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Helper methods for common OAuth2 requests.
@@ -102,6 +102,13 @@ public class OAuth2 {
     private static final String SCREEN_LOCK = "screen_lock";
     private static final String TOKEN = "token";
     private static final String USERNAME = "username";
+    private static final String EMAIL = "email";
+    private static final String FIRST_NAME = "first_name";
+    private static final String LAST_NAME = "last_name";
+    private static final String DISPLAY_NAME = "display_name";
+    private static final String PHOTOS = "photos";
+    private static final String PICTURE = "picture";
+    private static final String THUMBNAIL = "thumbnail";
     private static final String CODE = "code";
     private static final String ACTIVATED_CLIENT_CODE = "activated_client_code";
     private static final String CUSTOM_ATTRIBUTES = "custom_attributes";
@@ -150,14 +157,14 @@ public class OAuth2 {
         sb.append(OAUTH_AUTH_PATH).append(displayType == null ? TOUCH : displayType);
         sb.append(AND).append(RESPONSE_TYPE).append(EQUAL).append(clientSecret == null ? TOKEN : ACTIVATED_CLIENT_CODE);
         sb.append(AND).append(CLIENT_ID).append(EQUAL).append(Uri.encode(clientId));
-        sb.append(AND).append(SCOPE).append(EQUAL).append(Uri.encode(computeScopeParameter(scopes)));
+        if (scopes != null && scopes.length > 0) sb.append(AND).append(SCOPE).append(EQUAL).append(Uri.encode(computeScopeParameter(scopes)));
         sb.append(AND).append(REDIRECT_URI).append(EQUAL).append(callbackUrl);
         return URI.create(sb.toString());
     }
 
     private static String computeScopeParameter(String[] scopes) {
         final List<String> scopesList = Arrays.asList(scopes == null ? new String[]{} : scopes);
-        Set<String> scopesSet = new HashSet<String>(scopesList);
+        Set<String> scopesSet = new TreeSet<String>(scopesList); // sorted set to make tests easier
         scopesSet.add(REFRESH_TOKEN);
         return TextUtils.join(" ", scopesSet.toArray(new String[]{}));
     }
@@ -359,6 +366,12 @@ public class OAuth2 {
      */
     public static class IdServiceResponse extends AbstractResponse {
         public String username;
+        public String email;
+        public String firstName;
+        public String lastName;
+        public String displayName;
+        public String pictureUrl;
+        public String thumbnailUrl;
         public int pinLength = -1;
         public int screenLockTimeout = -1;
         public JSONObject customAttributes;
@@ -369,6 +382,15 @@ public class OAuth2 {
             try {
                 JSONObject parsedResponse = parseResponse(httpResponse);
                 username = parsedResponse.getString(USERNAME);
+                email = parsedResponse.getString(EMAIL);
+                firstName = parsedResponse.getString(FIRST_NAME);
+                lastName = parsedResponse.getString(LAST_NAME);
+                displayName = parsedResponse.getString(DISPLAY_NAME);
+                JSONObject photos = parsedResponse.getJSONObject(PHOTOS);
+                if (photos != null) {
+                    pictureUrl = photos.getString(PICTURE);
+                    thumbnailUrl = photos.getString(THUMBNAIL);
+                }
                 customAttributes = parsedResponse.optJSONObject(CUSTOM_ATTRIBUTES);
                 customPermissions = parsedResponse.optJSONObject(CUSTOM_PERMISSIONS);
 

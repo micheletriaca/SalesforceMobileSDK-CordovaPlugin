@@ -32,6 +32,12 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.salesforce.androidsdk.accounts.UserAccount;
+import com.salesforce.androidsdk.app.SalesforceSDKManager;
+import com.salesforce.androidsdk.auth.AuthenticatorService;
+import com.salesforce.androidsdk.auth.HttpAccess;
+import com.salesforce.androidsdk.rest.RestClient.ClientInfo;
+
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.accounts.AccountManagerCallback;
@@ -44,12 +50,6 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
 
-import com.salesforce.androidsdk.accounts.UserAccount;
-import com.salesforce.androidsdk.app.SalesforceSDKManager;
-import com.salesforce.androidsdk.auth.AuthenticatorService;
-import com.salesforce.androidsdk.auth.HttpAccess;
-import com.salesforce.androidsdk.rest.RestClient.ClientInfo;
-
 /**
  * ClientManager is a factory class for RestClient which stores OAuth credentials in the AccountManager.
  * If no account is found, it kicks off the login flow which creates a new account if successful.
@@ -59,6 +59,7 @@ public class ClientManager {
 
 	public static final String ACCESS_TOKEN_REVOKE_INTENT = "access_token_revoked";
     public static final String ACCESS_TOKEN_REFRESH_INTENT = "access_token_refeshed";
+    public static final String INSTANCE_URL_UPDATE_INTENT = "instance_url_updated";
 
     private final AccountManager accountManager;
     private final String accountType;
@@ -128,6 +129,23 @@ public class ClientManager {
         }
     }
 
+    /**
+     * Method to created an unauthenticated RestClient asynchronously
+     * @param activityContext
+     * @param restClientCallback
+     */
+    public void getUnauthenticatedRestClient(Activity activityContext, RestClientCallback restClientCallback) {
+        restClientCallback.authenticatedRestClient(peekUnauthenticatedRestClient());
+    }
+
+    /**
+     * Method to create an unauthenticated RestClient.
+     * @return
+     */
+    public RestClient peekUnauthenticatedRestClient() {
+        return new RestClient(new RestClient.UnauthenticatedClientInfo(), null, HttpAccess.DEFAULT, null);
+    }
+
     public RestClient peekRestClient() {
         return peekRestClient(getAccount());
     }
@@ -143,7 +161,7 @@ public class ClientManager {
     public RestClient peekRestClient(UserAccount user) {
     	return peekRestClient(getAccountByName(user.getAccountName()));
     }
-    
+
     public RestClient peekRestClient(Account acc) {
         if (acc == null) {
             AccountInfoNotFoundException e = new AccountInfoNotFoundException("No user account found");
@@ -168,6 +186,28 @@ public class ClientManager {
         String username = SalesforceSDKManager.decryptWithPasscode(accountManager.getUserData(acc, AuthenticatorService.KEY_USERNAME), passcodeHash);
         String accountName = accountManager.getUserData(acc, AccountManager.KEY_ACCOUNT_NAME);
         String clientId = SalesforceSDKManager.decryptWithPasscode(accountManager.getUserData(acc, AuthenticatorService.KEY_CLIENT_ID), passcodeHash);
+        final String lastName = SalesforceSDKManager.decryptWithPasscode(accountManager.getUserData(acc, AuthenticatorService.KEY_LAST_NAME), passcodeHash);
+        final String email = SalesforceSDKManager.decryptWithPasscode(accountManager.getUserData(acc, AuthenticatorService.KEY_EMAIL), passcodeHash);
+        final String encFirstName =  accountManager.getUserData(acc, AuthenticatorService.KEY_FIRST_NAME);
+        String firstName = null;
+        if (encFirstName != null) {
+            firstName = SalesforceSDKManager.decryptWithPasscode(encFirstName, passcodeHash);
+        }
+        final String encDisplayName =  accountManager.getUserData(acc, AuthenticatorService.KEY_DISPLAY_NAME);
+        String displayName = null;
+        if (encDisplayName != null) {
+            displayName = SalesforceSDKManager.decryptWithPasscode(encDisplayName, passcodeHash);
+        }
+        final String encPhotoUrl = accountManager.getUserData(acc, AuthenticatorService.KEY_PHOTO_URL);
+        String photoUrl = null;
+        if (encPhotoUrl != null) {
+            photoUrl = SalesforceSDKManager.decryptWithPasscode(encPhotoUrl, passcodeHash);
+        }
+        final String encThumbnailUrl = accountManager.getUserData(acc, AuthenticatorService.KEY_THUMBNAIL_URL);
+        String thumbnailUrl = null;
+        if (encThumbnailUrl != null) {
+            thumbnailUrl = SalesforceSDKManager.decryptWithPasscode(encThumbnailUrl, passcodeHash);
+        }
         final String encCommunityId = accountManager.getUserData(acc, AuthenticatorService.KEY_COMMUNITY_ID);
         String communityId = null;
         if (encCommunityId != null) {
@@ -188,10 +228,11 @@ public class ClientManager {
             throw new AccountInfoNotFoundException(AuthenticatorService.KEY_ORG_ID);
 
         try {
-            AccMgrAuthTokenProvider authTokenProvider = new AccMgrAuthTokenProvider(this, authToken, refreshToken);
+            AccMgrAuthTokenProvider authTokenProvider = new AccMgrAuthTokenProvider(this, instanceServer, authToken, refreshToken);
             ClientInfo clientInfo = new ClientInfo(clientId, new URI(instanceServer),
             		new URI(loginServer), new URI(idUrl), accountName, username,
-            		userId, orgId, communityId, communityUrl);
+            		userId, orgId, communityId, communityUrl,
+                    firstName, lastName, displayName, email, photoUrl, thumbnailUrl);
             return new RestClient(clientInfo, authToken, HttpAccess.DEFAULT, authTokenProvider);
         } catch (URISyntaxException e) {
             Log.w("ClientManager:peekRestClient", "Invalid server URL", e);
@@ -290,9 +331,21 @@ public class ClientManager {
     }
 
     public Bundle createNewAccount(String accountName, String username, String refreshToken,
+                                   String authToken, String instanceUrl, String loginUrl, String idUrl,
+                                   String clientId, String orgId, String userId, String passcodeHash,
+                                   String clientSecret, String communityId, String communityUrl) {
+        return createNewAccount(accountName, username, refreshToken,
+                authToken, instanceUrl, loginUrl, idUrl,
+                clientId, orgId, userId, passcodeHash,
+                clientSecret, communityId, communityUrl,
+                null, null, null, null, null, null);
+    }
+
+    public Bundle createNewAccount(String accountName, String username, String refreshToken,
     		String authToken, String instanceUrl, String loginUrl, String idUrl,
     		String clientId, String orgId, String userId, String passcodeHash,
-            String clientSecret, String communityId, String communityUrl) {
+            String clientSecret, String communityId, String communityUrl,
+            String firstName, String lastName, String displayName, String email, String photoUrl, String thumbnailUrl) {
         Bundle extras = new Bundle();
         extras.putString(AccountManager.KEY_ACCOUNT_NAME, accountName);
         extras.putString(AccountManager.KEY_ACCOUNT_TYPE, getAccountType());
@@ -313,8 +366,22 @@ public class ClientManager {
             extras.putString(AuthenticatorService.KEY_COMMUNITY_URL, SalesforceSDKManager.encryptWithPasscode(communityUrl, passcodeHash));
         }
         extras.putString(AccountManager.KEY_AUTHTOKEN, SalesforceSDKManager.encryptWithPasscode(authToken, passcodeHash));
+        extras.putString(AuthenticatorService.KEY_FIRST_NAME, SalesforceSDKManager.encryptWithPasscode(firstName, passcodeHash));
+        extras.putString(AuthenticatorService.KEY_LAST_NAME, SalesforceSDKManager.encryptWithPasscode(lastName, passcodeHash));
+        extras.putString(AuthenticatorService.KEY_DISPLAY_NAME, SalesforceSDKManager.encryptWithPasscode(displayName, passcodeHash));
+        extras.putString(AuthenticatorService.KEY_EMAIL, SalesforceSDKManager.encryptWithPasscode(email, passcodeHash));
+        extras.putString(AuthenticatorService.KEY_PHOTO_URL, SalesforceSDKManager.encryptWithPasscode(photoUrl, passcodeHash));
+        extras.putString(AuthenticatorService.KEY_THUMBNAIL_URL, SalesforceSDKManager.encryptWithPasscode(thumbnailUrl, passcodeHash));
         Account acc = new Account(accountName, getAccountType());
-        accountManager.addAccountExplicitly(acc, SalesforceSDKManager.encryptWithPasscode(refreshToken, passcodeHash), extras);
+        accountManager.addAccountExplicitly(acc, SalesforceSDKManager.encryptWithPasscode(refreshToken, passcodeHash), new Bundle());
+        // There is a bug in AccountManager::addAccountExplicitly() that sometimes causes user data to not be
+        // saved when the user data is passed in through that method. The work-around is to call setUserData()
+        // for all the user data manually after passing in empty user data into addAccountExplicitly().
+        for (String key : extras.keySet()) {
+            // WARNING! This assumes all user data is a String!
+            accountManager.setUserData(acc, key, extras.getString(key));
+        }
+
         accountManager.setAuthToken(acc, AccountManager.KEY_AUTHTOKEN, authToken);
         SalesforceSDKManager.getInstance().getUserAccountManager().storeCurrentUserInfo(userId, orgId);
         return extras;
@@ -353,6 +420,28 @@ public class ClientManager {
                     final String userId = SalesforceSDKManager.decryptWithPasscode(acctManager.getUserData(account, AuthenticatorService.KEY_USER_ID), oldPass);
                     final String username = SalesforceSDKManager.decryptWithPasscode(acctManager.getUserData(account, AuthenticatorService.KEY_USERNAME), oldPass);
                     final String clientId = SalesforceSDKManager.decryptWithPasscode(acctManager.getUserData(account, AuthenticatorService.KEY_CLIENT_ID), oldPass);
+                    final String lastName = SalesforceSDKManager.decryptWithPasscode(acctManager.getUserData(account, AuthenticatorService.KEY_LAST_NAME), oldPass);
+                    final String email = SalesforceSDKManager.decryptWithPasscode(acctManager.getUserData(account, AuthenticatorService.KEY_EMAIL), oldPass);
+                    final String encFirstName =  acctManager.getUserData(account, AuthenticatorService.KEY_FIRST_NAME);
+                    String firstName = null;
+                    if (encFirstName != null) {
+                        firstName = SalesforceSDKManager.decryptWithPasscode(encFirstName, oldPass);
+                    }
+                    final String encDisplayName =  acctManager.getUserData(account, AuthenticatorService.KEY_DISPLAY_NAME);
+                    String displayName = null;
+                    if (encDisplayName != null) {
+                        displayName = SalesforceSDKManager.decryptWithPasscode(encDisplayName, oldPass);
+                    }
+                    final String encPhotoUrl = acctManager.getUserData(account, AuthenticatorService.KEY_PHOTO_URL);
+                    String photoUrl = null;
+                    if (encPhotoUrl != null) {
+                        photoUrl = SalesforceSDKManager.decryptWithPasscode(encPhotoUrl, oldPass);
+                    }
+                    final String encThumbnailUrl = acctManager.getUserData(account, AuthenticatorService.KEY_THUMBNAIL_URL);
+                    String thumbnailUrl = null;
+                    if (encThumbnailUrl != null) {
+                        thumbnailUrl = SalesforceSDKManager.decryptWithPasscode(encThumbnailUrl, oldPass);
+                    }
                     final String encClientSecret = acctManager.getUserData(account, AuthenticatorService.KEY_CLIENT_SECRET);
                     String clientSecret = null;
                     if (encClientSecret != null) {
@@ -369,6 +458,7 @@ public class ClientManager {
                     	communityUrl = SalesforceSDKManager.decryptWithPasscode(encCommunityUrl, oldPass);
                     }
 
+
                     // Encrypt data with new hash and put it back in AccountManager.
                     acctManager.setUserData(account, AccountManager.KEY_AUTHTOKEN, SalesforceSDKManager.encryptWithPasscode(authToken, newPass));
                     acctManager.setPassword(account, SalesforceSDKManager.encryptWithPasscode(refreshToken, newPass));
@@ -379,6 +469,20 @@ public class ClientManager {
                     acctManager.setUserData(account, AuthenticatorService.KEY_USER_ID, SalesforceSDKManager.encryptWithPasscode(userId, newPass));
                     acctManager.setUserData(account, AuthenticatorService.KEY_USERNAME, SalesforceSDKManager.encryptWithPasscode(username, newPass));
                     acctManager.setUserData(account, AuthenticatorService.KEY_CLIENT_ID, SalesforceSDKManager.encryptWithPasscode(clientId, newPass));
+                    acctManager.setUserData(account, AuthenticatorService.KEY_LAST_NAME, SalesforceSDKManager.encryptWithPasscode(lastName, newPass));
+                    acctManager.setUserData(account, AuthenticatorService.KEY_EMAIL, SalesforceSDKManager.encryptWithPasscode(email, newPass));
+                    if (firstName != null) {
+                        acctManager.setUserData(account, AuthenticatorService.KEY_FIRST_NAME, SalesforceSDKManager.encryptWithPasscode(firstName, newPass));
+                    }
+                    if (displayName != null) {
+                        acctManager.setUserData(account, AuthenticatorService.KEY_DISPLAY_NAME, SalesforceSDKManager.encryptWithPasscode(displayName, newPass));
+                    }
+                    if (photoUrl != null) {
+                        acctManager.setUserData(account, AuthenticatorService.KEY_PHOTO_URL, SalesforceSDKManager.encryptWithPasscode(photoUrl, newPass));
+                    }
+                    if (thumbnailUrl != null) {
+                        acctManager.setUserData(account, AuthenticatorService.KEY_THUMBNAIL_URL, SalesforceSDKManager.encryptWithPasscode(thumbnailUrl, newPass));
+                    }
                     if (clientSecret != null) {
                         acctManager.setUserData(account, AuthenticatorService.KEY_CLIENT_SECRET, SalesforceSDKManager.encryptWithPasscode(clientSecret, newPass));
                     }
@@ -473,6 +577,7 @@ public class ClientManager {
         private final ClientManager clientManager;
         private static String lastNewAuthToken;
         private final String refreshToken;
+        private static String lastNewInstanceUrl;
         private long lastRefreshTime = -1 /* never refreshed */;
 
         /**
@@ -480,10 +585,11 @@ public class ClientManager {
          * @param clientManager
          * @param refreshToken
          */
-        public AccMgrAuthTokenProvider(ClientManager clientManager, String authToken, String refreshToken) {
+        public AccMgrAuthTokenProvider(ClientManager clientManager, String instanceUrl, String authToken, String refreshToken) {
             this.clientManager = clientManager;
             this.refreshToken = refreshToken;
             lastNewAuthToken = authToken;
+            lastNewInstanceUrl = instanceUrl;
         }
 
         /**
@@ -514,33 +620,42 @@ public class ClientManager {
             // Invalidate current auth token
             clientManager.invalidateToken(lastNewAuthToken);
             String newAuthToken = null;
+            String newInstanceUrl = null;
+
             try {
                 final Bundle bundle = clientManager.accountManager.getAuthToken(acc, AccountManager.KEY_AUTHTOKEN, null, false, null, null).getResult();
                 if (bundle == null) {
                     Log.w("AccMgrAuthTokenProvider:fetchNewAuthToken", "accountManager.getAuthToken returned null bundle");
                 } else {
                     newAuthToken = bundle.getString(AccountManager.KEY_AUTHTOKEN);
+                    final String encryptedInstanceUrl = bundle.getString(AuthenticatorService.KEY_INSTANCE_URL);
+                    if (encryptedInstanceUrl != null) {
+                        newInstanceUrl = SalesforceSDKManager.decryptWithPasscode(encryptedInstanceUrl, SalesforceSDKManager.getInstance().getPasscodeHash());
+                    }
+                    Intent broadcastIntent;
                     if (newAuthToken == null) {
                         if (clientManager.revokedTokenShouldLogout) {
 
                         	// Check if a looper exists before trying to prepare another one.
                         	if (Looper.myLooper() == null) {
-                                Looper.prepare();	
+                                Looper.prepare();
                         	}
                             SalesforceSDKManager.getInstance().logout(null, false);
                         }
 
                         // Broadcasts an intent that the access token has been revoked.
-                        final Intent revokeIntent = new Intent(ACCESS_TOKEN_REVOKE_INTENT);
-                        revokeIntent.setPackage(SalesforceSDKManager.getInstance().getAppContext().getPackageName());
-                        SalesforceSDKManager.getInstance().getAppContext().sendBroadcast(revokeIntent);
+                        broadcastIntent = new Intent(ACCESS_TOKEN_REVOKE_INTENT);
+                    } else if (newInstanceUrl != null && !newInstanceUrl.equalsIgnoreCase(lastNewInstanceUrl)) {
+                        // Broadcasts an intent that the instance server has changed (implicitly token refreshed too)
+                        broadcastIntent = new Intent(INSTANCE_URL_UPDATE_INTENT);
                     } else {
 
                         // Broadcasts an intent that the access token has been refreshed.
-                        final Intent refreshIntent = new Intent(ACCESS_TOKEN_REFRESH_INTENT);
-                        refreshIntent.setPackage(SalesforceSDKManager.getInstance().getAppContext().getPackageName());
-                        SalesforceSDKManager.getInstance().getAppContext().sendBroadcast(refreshIntent);
+                        broadcastIntent = new Intent(ACCESS_TOKEN_REFRESH_INTENT);
                     }
+
+                    broadcastIntent.setPackage(SalesforceSDKManager.getInstance().getAppContext().getPackageName());
+                    SalesforceSDKManager.getInstance().getAppContext().sendBroadcast(broadcastIntent);
                 }
             } catch (Exception e) {
                 Log.w("AccMgrAuthTokenProvider:fetchNewAuthToken:getNewAuthToken",
@@ -549,6 +664,7 @@ public class ClientManager {
                 synchronized (lock) {
                     gettingAuthToken = false;
                     lastNewAuthToken = newAuthToken;
+                    lastNewInstanceUrl = newInstanceUrl;
                     lastRefreshTime  = System.currentTimeMillis();
                     lock.notifyAll();
                 }
@@ -565,6 +681,9 @@ public class ClientManager {
         public long getLastRefreshTime() {
             return lastRefreshTime;
         }
+
+        @Override
+        public String getInstanceUrl() { return lastNewInstanceUrl; }
     }
 
     /**

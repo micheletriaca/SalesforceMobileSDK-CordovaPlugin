@@ -58,6 +58,12 @@ public class UserAccount {
 	public static final String COMMUNITY_URL = "communityUrl";
 	public static final String INTERNAL_COMMUNITY_ID = "000000000000000000";
 	public static final String INTERNAL_COMMUNITY_PATH = "internal";
+    public static final String EMAIL = "email";
+    public static final String FIRST_NAME = "first_name";
+	public static final String DISPLAY_NAME = "display_name";
+	public static final String LAST_NAME = "last_name";
+    public static final String PHOTO_URL = "photoUrl";
+    public static final String THUMBNAIL_URL = "thumbnailUrl";
 
 	private static final String TAG = "UserAccount";
 	private static final String FORWARD_SLASH = "/";
@@ -75,6 +81,12 @@ public class UserAccount {
 	private String clientId;
 	private String communityId;
 	private String communityUrl;
+    private String firstName;
+    private String lastName;
+	private String displayName;
+	private String email;
+    private String photoUrl;
+    private String thumbnailUrl;
 
 	/**
 	 * Parameterized constructor.
@@ -92,10 +104,45 @@ public class UserAccount {
 	 * @param communityId Community ID.
 	 * @param communityUrl Community URL.
 	 */
+    public UserAccount(String authToken, String refreshToken,
+                       String loginServer, String idUrl, String instanceServer,
+                       String orgId, String userId, String username, String accountName,
+                       String clientId, String communityId, String communityUrl) {
+        this(authToken, refreshToken,
+                loginServer, idUrl, instanceServer,
+                orgId, userId, username, accountName,
+                clientId, communityId, communityUrl,
+                null, null, null, null, null, null);
+    }
+
+    /**
+     * Parameterized constructor.
+     *
+     * @param authToken Auth token.
+     * @param refreshToken Refresh token.
+     * @param loginServer Login server.
+     * @param idUrl Identity URL.
+     * @param instanceServer Instance server.
+     * @param orgId Org ID.
+     * @param userId User ID.
+     * @param username Username.
+     * @param accountName Account name.
+     * @param clientId Client ID.
+     * @param communityId Community ID.
+     * @param communityUrl Community URL.
+     * @param firstName First Name.
+     * @param lastName Last Name.
+	 * @param displayName Display Name.
+	 * @param email Email.
+     * @param photoUrl Photo URL.
+     * @param thumbnailUrl Thumbnail URL.
+     */
 	public UserAccount(String authToken, String refreshToken,
 			String loginServer, String idUrl, String instanceServer,
 			String orgId, String userId, String username, String accountName,
-			String clientId, String communityId, String communityUrl) {
+			String clientId, String communityId, String communityUrl,
+            String firstName, String lastName, String displayName, String email, String photoUrl,
+            String thumbnailUrl ) {
 		this.authToken = authToken;
 		this.refreshToken = refreshToken;
 		this.loginServer = loginServer;
@@ -108,6 +155,12 @@ public class UserAccount {
 		this.clientId = clientId;
 		this.communityId = communityId;
 		this.communityUrl = communityUrl;
+        this.firstName = firstName;
+        this.lastName = lastName;
+		this.displayName = displayName;
+        this.email = email;
+        this.photoUrl = photoUrl;
+        this.thumbnailUrl = thumbnailUrl;
 	}
 
 	/**
@@ -130,8 +183,14 @@ public class UserAccount {
 				accountName = String.format("%s (%s) (%s)", username, instanceServer,
 						SalesforceSDKManager.getInstance().getApplicationName());
 			}
-			communityId = object.optString(communityId, null);
-			communityUrl = object.optString(communityUrl, null);
+			communityId = object.optString(COMMUNITY_ID, null);
+			communityUrl = object.optString(COMMUNITY_URL, null);
+            firstName = object.optString(FIRST_NAME, null);
+            lastName = object.optString(LAST_NAME, null);
+			displayName = object.optString(DISPLAY_NAME, null);
+			email = object.optString(EMAIL, null);
+            photoUrl = object.optString(PHOTO_URL, null);
+			thumbnailUrl = object.optString(THUMBNAIL_URL, null);
 		}
 	}
 
@@ -154,6 +213,12 @@ public class UserAccount {
 			accountName = bundle.getString(ACCOUNT_NAME);
 			communityId = bundle.getString(COMMUNITY_ID);
 			communityUrl = bundle.getString(COMMUNITY_URL);
+            firstName = bundle.getString(FIRST_NAME);
+            lastName = bundle.getString(LAST_NAME);
+			displayName = bundle.getString(DISPLAY_NAME);
+			email = bundle.getString(EMAIL);
+            photoUrl = bundle.getString(PHOTO_URL);
+            thumbnailUrl = bundle.getString(THUMBNAIL_URL);
 		}
 	}
 
@@ -264,6 +329,60 @@ public class UserAccount {
 	public String getCommunityUrl() {
 		return communityUrl;
 	}
+
+    /**
+     * Returns the first name for this user account.
+     *
+     * @return First Name.
+     */
+    public String getFirstName() {
+        return firstName;
+    }
+
+	/**
+	 * Returns the Display name for this user account.
+	 *
+	 * @return Display Name.
+	 */
+	public String getDisplayName() {
+		return displayName;
+	}
+
+	/**
+     * Returns the last name for this user account.
+     *
+     * @return Last Name.
+     */
+    public String getLastName() {
+        return lastName;
+    }
+
+    /**
+     * Returns the email for this user account.
+     *
+     * @return Email.
+     */
+    public String getEmail() {
+        return email;
+    }
+
+    /**
+     * Returns the photo url for this user.
+     *
+     * @return Photo URL.
+     */
+    public String getPhotoUrl() {
+        return photoUrl;
+    }
+
+    /**
+     * Returns the thumbnail for this user.
+     *
+     * @return Thumbnail.
+     */
+    public String getThumbnailUrl() {
+        return thumbnailUrl;
+    }
 
 	/**
 	 * Returns the org level storage path for this user account, relative to
@@ -461,6 +580,12 @@ public class UserAccount {
         	object.put(CLIENT_ID, clientId);
         	object.put(COMMUNITY_ID, communityId);
         	object.put(COMMUNITY_URL, communityUrl);
+            object.put(FIRST_NAME, firstName);
+            object.put(LAST_NAME, lastName);
+			object.put(DISPLAY_NAME, displayName);
+			object.put(EMAIL, email);
+            object.put(PHOTO_URL, photoUrl);
+            object.put(THUMBNAIL_URL, thumbnailUrl);
     	} catch (JSONException e) {
     		Log.e(TAG, "Unable to convert to JSON");
     	}
@@ -486,6 +611,12 @@ public class UserAccount {
         object.putString(ACCOUNT_NAME, accountName);
         object.putString(COMMUNITY_ID, communityId);
         object.putString(COMMUNITY_URL, communityUrl);
+        object.putString(FIRST_NAME, firstName);
+        object.putString(LAST_NAME, lastName);
+		object.putString(DISPLAY_NAME, displayName);
+		object.putString(EMAIL, email);
+        object.putString(PHOTO_URL, photoUrl);
+        object.putString(THUMBNAIL_URL, thumbnailUrl);
     	return object;
     }
 }

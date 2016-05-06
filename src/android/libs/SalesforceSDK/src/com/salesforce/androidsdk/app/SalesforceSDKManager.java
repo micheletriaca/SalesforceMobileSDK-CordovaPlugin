@@ -26,9 +26,6 @@
  */
 package com.salesforce.androidsdk.app;
 
-import java.net.URI;
-import java.util.List;
-
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.accounts.AccountManagerCallback;
@@ -46,6 +43,7 @@ import android.content.res.Resources;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
@@ -70,9 +68,11 @@ import com.salesforce.androidsdk.ui.AccountSwitcherActivity;
 import com.salesforce.androidsdk.ui.LoginActivity;
 import com.salesforce.androidsdk.ui.PasscodeActivity;
 import com.salesforce.androidsdk.ui.SalesforceR;
-import com.salesforce.androidsdk.ui.sfhybrid.SalesforceDroidGapActivity;
 import com.salesforce.androidsdk.util.EventsObservable;
 import com.salesforce.androidsdk.util.EventsObservable.EventType;
+
+import java.net.URI;
+import java.util.List;
 
 /**
  * This class serves as an interface to the various
@@ -88,7 +88,7 @@ public class SalesforceSDKManager {
     /**
      * Current version of this SDK.
      */
-    public static final String SDK_VERSION = "3.1.0";
+    public static final String SDK_VERSION = "4.1.1";
 
     /**
      * Default app name.
@@ -121,6 +121,7 @@ public class SalesforceSDKManager {
     private AdminSettingsManager adminSettingsManager;
     private AdminPermsManager adminPermsManager;
     private PushNotificationInterface pushNotificationInterface;
+    private String uid; // device id
     private volatile boolean loggedOut = false;
 
     /**
@@ -143,15 +144,15 @@ public class SalesforceSDKManager {
 
     /**
      * Protected constructor.
-     *
      * @param context Application context.
      * @param keyImpl Implementation for KeyInterface.
      * @param mainActivity Activity that should be launched after the login flow.
      * @param loginActivity Login activity.
      */
-    protected SalesforceSDKManager(Context context, KeyInterface keyImpl, 
-    		Class<? extends Activity> mainActivity, Class<? extends Activity> loginActivity) {
-    	this.context = context;
+    protected SalesforceSDKManager(Context context, KeyInterface keyImpl,
+                                   Class<? extends Activity> mainActivity, Class<? extends Activity> loginActivity) {
+        this.uid = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+        this.context = context;
     	this.keyImpl = keyImpl;
     	this.mainActivityClass = mainActivity;
     	if (loginActivity != null) {
@@ -278,14 +279,13 @@ public class SalesforceSDKManager {
 
 	/**
 	 * For internal use only. Initializes required components.
-	 *
 	 * @param context Application context.
      * @param keyImpl Implementation of KeyInterface.
      * @param mainActivity Activity to be launched after the login flow.
      * @param loginActivity Login activity.
-	 */
+     */
     private static void init(Context context, KeyInterface keyImpl,
-    		Class<? extends Activity> mainActivity, Class<? extends Activity> loginActivity) {
+                             Class<? extends Activity> mainActivity, Class<? extends Activity> loginActivity) {
     	if (INSTANCE == null) {
     		INSTANCE = new SalesforceSDKManager(context, keyImpl, mainActivity, loginActivity);
     	}
@@ -310,71 +310,34 @@ public class SalesforceSDKManager {
         HttpAccess.init(context, INSTANCE.getUserAgent());
 
         // Upgrades to the latest version.
-        UpgradeManager.getInstance().upgradeAccMgr();
+        SalesforceSDKUpgradeManager.getInstance().upgrade();
         EventsObservable.get().notifyEvent(EventType.AppCreateComplete);
     }
 
-	/**
-	 * Initializes required components. Hybrid apps must call one overload of
+    /**
+     * Initializes required components. Native apps must call one overload of
      * this method before using the Salesforce Mobile SDK.
-	 *
-	 * @param context Application context.
-     * @param keyImpl Implementation of KeyInterface.
-	 */
-    public static void initHybrid(Context context, KeyInterface keyImpl) {
-    	SalesforceSDKManager.init(context, keyImpl, SalesforceDroidGapActivity.class, LoginActivity.class);
-    }
-
-	/**
-	 * Initializes required components. Hybrid apps must call one overload of
-     * this method before using the Salesforce Mobile SDK.
-	 *
-	 * @param context Application context.
-     * @param keyImpl Implementation of KeyInterface.
-     * @param loginActivity Login activity.
-	 */
-    public static void initHybrid(Context context, KeyInterface keyImpl, Class<? extends Activity> loginActivity) {
-    	SalesforceSDKManager.init(context, keyImpl, SalesforceDroidGapActivity.class, loginActivity);
-    }
-
-	/**
-	 * Initializes required components. Hybrid apps must call one overload of
-     * this method before using the Salesforce Mobile SDK.
-	 *
-	 * @param context Application context.
-     * @param keyImpl Implementation of KeyInterface.
-     * @param mainActivity Main activity.
-     * @param loginActivity Login activity.
-	 */
-    public static void initHybrid(Context context, KeyInterface keyImpl,
-    		Class<? extends SalesforceDroidGapActivity> mainActivity, Class<? extends Activity> loginActivity) {
-    	SalesforceSDKManager.init(context, keyImpl, mainActivity, loginActivity);
-    }
-
-	/**
-	 * Initializes required components. Native apps must call one overload of
-     * this method before using the Salesforce Mobile SDK.
-	 *
-	 * @param context Application context.
+     *
+     * @param context Application context.
      * @param keyImpl Implementation of KeyInterface.
      * @param mainActivity Activity that should be launched after the login flow.
-	 */
+     */
     public static void initNative(Context context, KeyInterface keyImpl, Class<? extends Activity> mainActivity) {
-    	SalesforceSDKManager.init(context, keyImpl, mainActivity, LoginActivity.class);
+        SalesforceSDKManager.init(context, keyImpl, mainActivity, LoginActivity.class);
     }
 
-	/**
-	 * Initializes required components. Native apps must call one overload of
+    /**
+     * Initializes required components. Native apps must call one overload of
      * this method before using the Salesforce Mobile SDK.
-	 *
-	 * @param context Application context.
+     *
+     * @param context Application context.
      * @param keyImpl Implementation of KeyInterface.
      * @param mainActivity Activity that should be launched after the login flow.
      * @param loginActivity Login activity.
-	 */
+     */
     public static void initNative(Context context, KeyInterface keyImpl,
-    		Class<? extends Activity> mainActivity, Class<? extends Activity> loginActivity) {
-    	SalesforceSDKManager.init(context, keyImpl, mainActivity, loginActivity);
+                                  Class<? extends Activity> mainActivity, Class<? extends Activity> loginActivity) {
+        SalesforceSDKManager.init(context, keyImpl, mainActivity, loginActivity);
     }
 
     /**
@@ -807,7 +770,7 @@ public class SalesforceSDKManager {
     				loginServer, account, frontActivity);
     	} else {
     		removeAccount(clientMgr, showLoginPage, refreshToken, clientId,
-    				loginServer, account, frontActivity);
+                    loginServer, account, frontActivity);
     	}
     }
 
@@ -841,7 +804,7 @@ public class SalesforceSDKManager {
     		final AccountManager accMgr = AccountManager.get(context);
     		if (accMgr != null) {
     			final Account[] accounts = accMgr.getAccountsByType(getAccountType());
-    			if (accounts != null) {
+    			if (accounts.length > 0) {
     				for (int i = 0; i < accounts.length - 1; i++) {
     					clientMgr.removeAccounts(accounts);
     				}
@@ -885,7 +848,7 @@ public class SalesforceSDKManager {
 
     /**
      * Returns a user agent string based on the Mobile SDK version. The user agent takes the following form:
-     *   SalesforceMobileSDK/<salesforceSDK version> android/<android OS version> appName/appVersion <Native|Hybrid>
+     *   SalesforceMobileSDK/{salesforceSDK version} android/{android OS version} appName/appVersion {Native|Hybrid} uid_{device id}
      *
      * @return The user agent string to use for all requests.
      */
@@ -893,7 +856,7 @@ public class SalesforceSDKManager {
     	return getUserAgent("");
     }
     
-    public final String getUserAgent(String qualifier) {
+    public String getUserAgent(String qualifier) {
         String appName = "";
         String appVersion = "";
         try {
@@ -907,10 +870,17 @@ public class SalesforceSDKManager {
     	   	// A test harness such as Gradle does NOT have an application name.
             Log.w("SalesforceSDKManager:getUserAgent", nfe);
         }
-	    String nativeOrHybrid = (isHybrid() ? "Hybrid" : "Native") + qualifier;
-	    return String.format("SalesforceMobileSDK/%s android mobile/%s (%s) %s/%s %s",
-	            SDK_VERSION, Build.VERSION.RELEASE, Build.MODEL, appName, appVersion, nativeOrHybrid);
-	}
+        String appTypeWithQualifier = getAppType() + qualifier;
+        return String.format("SalesforceMobileSDK/%s android mobile/%s (%s) %s/%s %s uid_%s",
+                SDK_VERSION, Build.VERSION.RELEASE, Build.MODEL, appName, appVersion, appTypeWithQualifier, uid);
+    }
+
+    /**
+     * @return app type as String
+     */
+    public String getAppType() {
+        return "Native";
+    }
 
 	/**
 	 * Indicates whether the application is a hybrid application.
@@ -918,7 +888,7 @@ public class SalesforceSDKManager {
 	 * @return True if this is a hybrid application.
 	 */
 	public boolean isHybrid() {
-		return SalesforceDroidGapActivity.class.isAssignableFrom(getMainActivityClass());
+        return false;
 	}
 
     /**
@@ -928,18 +898,6 @@ public class SalesforceSDKManager {
      */
     public String getAccountType() {
         return context.getString(getSalesforceR().stringAccountType());
-    }
-
-    /**
-     * Indicates whether the app is running on a tablet.
-     *
-     * @return True if the application is running on a tablet.
-     */
-    public static boolean isTablet() {
-        if ((INSTANCE.context.getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK) == Configuration.SCREENLAYOUT_SIZE_XLARGE) {
-            return true;
-        }
-        return false;
     }
 
     @Override

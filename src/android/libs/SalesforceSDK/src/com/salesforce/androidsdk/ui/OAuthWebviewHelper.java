@@ -383,7 +383,8 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
 
         }
 
-        @Override
+        @SafeVarargs
+		@Override
         protected final TokenEndpointResponse doInBackground(RequestType ... params) {
             try {
                 publishProgress(true);
@@ -427,7 +428,8 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
             //
             accountOptions = new AccountOptions(id.username, tr.refreshToken,
                     tr.authToken, tr.idUrl, tr.instanceUrl, tr.orgId, tr.userId,
-                    tr.communityId, tr.communityUrl);
+                    tr.communityId, tr.communityUrl, id.firstName, id.lastName,
+                    id.displayName, id.email, id.pictureUrl, id.thumbnailUrl);
 
             // Sets additional admin prefs, if they exist.
             final UserAccount account = new UserAccount(accountOptions.authToken,
@@ -436,7 +438,10 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
                     accountOptions.orgId, accountOptions.userId,
                     accountOptions.username, buildAccountName(accountOptions.username,
                     accountOptions.instanceUrl), loginOptions.clientSecret,
-                    accountOptions.communityId, accountOptions.communityUrl);
+                    accountOptions.communityId, accountOptions.communityUrl,
+                    accountOptions.firstName, accountOptions.lastName, accountOptions.displayName,
+                    accountOptions.email, accountOptions.photoUrl,
+                    accountOptions.thumbnailUrl);
 
             if (id.customAttributes != null) {
                 mgr.getAdminSettingsManager().setPrefs(id.customAttributes, account);
@@ -537,7 +542,13 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
                 loginOptions.passcodeHash,
                 loginOptions.clientSecret,
                 accountOptions.communityId,
-                accountOptions.communityUrl);
+                accountOptions.communityUrl,
+                accountOptions.firstName,
+                accountOptions.lastName,
+                accountOptions.displayName,
+                accountOptions.email,
+                accountOptions.photoUrl,
+                accountOptions.thumbnailUrl);
 
     	/*
     	 * Registers for push notifications, if push notification client ID is present.
@@ -553,7 +564,9 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
             		accountOptions.orgId, accountOptions.userId,
             		accountOptions.username, accountName,
             		loginOptions.clientSecret, accountOptions.communityId,
-            		accountOptions.communityUrl);
+            		accountOptions.communityUrl, accountOptions.firstName,
+                    accountOptions.lastName, accountOptions.displayName, accountOptions.email,
+                    accountOptions.photoUrl, accountOptions.thumbnailUrl);
         	PushMessaging.register(appContext, account);
     	}
         callback.onAccountAuthenticatorResult(extras);
@@ -592,6 +605,12 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
         private static final String USERNAME = "username";
         private static final String COMMUNITY_ID = "communityId";
         private static final String COMMUNITY_URL = "communityUrl";
+        private static final String FIRST_NAME = "firstName";
+        private static final String LAST_NAME = "lastName";
+        private static final String DISPLAY_NAME = "displayName";
+        private static final String EMAIL = "email";
+        private static final String PHOTO_URL = "photoUrl";
+        private static final String THUMBNAIL_URL = "thumbnailUrl";
 
         public final String username;
         public final String refreshToken;
@@ -602,12 +621,21 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
         public final String userId;
         public final String communityId;
         public final String communityUrl;
+        public final String firstName;
+        public final String lastName;
+        public final String displayName;
+        public final String email;
+        public final String photoUrl;
+        public final String thumbnailUrl;
 
         private final Bundle bundle;
 
+
+
         public AccountOptions(String username, String refreshToken,
                 String authToken, String identityUrl, String instanceUrl,
-                String orgId, String userId, String communityId, String communityUrl) {
+                String orgId, String userId, String communityId, String communityUrl,
+                String firstName, String lastName, String displayName, String email, String photoUrl, String thumbnailUrl) {
             super();
             this.username = username;
             this.refreshToken = refreshToken;
@@ -618,16 +646,30 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
             this.userId = userId;
             this.communityId = communityId;
             this.communityUrl = communityUrl;
+            this.firstName = firstName;
+            this.lastName = lastName;
+            this.displayName = displayName;
+            this.email = email;
+            this.photoUrl = photoUrl;
+            this.thumbnailUrl = thumbnailUrl;
+
 
             bundle = new Bundle();
             bundle.putString(USERNAME, username);
             bundle.putString(REFRESH_TOKEN, refreshToken);
             bundle.putString(AUTH_TOKEN, authToken);
+            bundle.putString(IDENTITY_URL, identityUrl);
             bundle.putString(INSTANCE_URL, instanceUrl);
             bundle.putString(ORG_ID, orgId);
             bundle.putString(USER_ID, userId);
             bundle.putString(COMMUNITY_ID, communityId);
             bundle.putString(COMMUNITY_URL, communityUrl);
+            bundle.putString(FIRST_NAME, firstName);
+            bundle.putString(LAST_NAME, lastName);
+            bundle.putString(DISPLAY_NAME, displayName);
+            bundle.putString(EMAIL, email);
+            bundle.putString(PHOTO_URL, photoUrl);
+            bundle.putString(THUMBNAIL_URL, thumbnailUrl);
         }
 
         public Bundle asBundle() {
@@ -645,7 +687,13 @@ public class OAuthWebviewHelper implements KeyChainAliasCallback {
                     options.getString(ORG_ID),
                     options.getString(USER_ID),
                     options.getString(COMMUNITY_ID),
-                    options.getString(COMMUNITY_URL)
+                    options.getString(COMMUNITY_URL),
+                    options.getString(FIRST_NAME),
+                    options.getString(LAST_NAME),
+                    options.getString(DISPLAY_NAME),
+                    options.getString(EMAIL),
+                    options.getString(PHOTO_URL),
+                    options.getString(THUMBNAIL_URL)
                     );
         }
     }

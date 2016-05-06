@@ -23,55 +23,19 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "SFUserAccount.h"
-#import "SFSDKAppConfig.h"
+#import <UIKit/UIKit.h>
 
-// Errors
-extern NSString * const kSalesforceSDKManagerErrorDomain;
-extern NSString * const kSalesforceSDKManagerErrorDetailsKey;
-enum {
-    kSalesforceSDKManagerErrorUnknown = 766,
-    kSalesforceSDKManagerErrorInvalidLaunchParameters
+#import "SFAuthenticationManager.h"
+#import "SalesforceSDKCoreDefines.h"
+
+@class SFUserAccount, SFSDKAppConfig;
+
+typedef NS_ENUM(NSUInteger, SFAppType) {
+    kSFAppTypeNative,
+    kSFAppTypeHybrid,
+    kSFAppTypeReactNative
 };
 
-// Launch actions taken
-typedef enum {
-    SFSDKLaunchActionNone                 = 0,
-    SFSDKLaunchActionAuthenticated        = 1 << 0,
-    SFSDKLaunchActionAlreadyAuthenticated = 1 << 1,
-    SFSDKLaunchActionAuthBypassed         = 1 << 2,
-    SFSDKLaunchActionPasscodeVerified     = 1 << 3
-} SFSDKLaunchAction;
-
-/**
- Callback block to implement for post launch actions.
- */
-typedef void (^SFSDKPostLaunchCallbackBlock)(SFSDKLaunchAction);
-
-/**
- Callback block to implement for handling launch errors.
- */
-typedef void (^SFSDKLaunchErrorCallbackBlock)(NSError*, SFSDKLaunchAction);
-
-/**
- Callback block to implement for post logout actions.
- */
-typedef void (^SFSDKLogoutCallbackBlock)(void);
-
-/**
- Callback block to implement for user switching.
- */
-typedef void (^SFSDKSwitchUserCallbackBlock)(SFUserAccount*, SFUserAccount*);
-
-/**
- Callback block to implement for post app foregrounding actions.
- */
-typedef void (^SFSDKAppForegroundCallbackBlock)(void);
-
-/**
- Block to return a user agent string, with an optional qualifier.
- */
-typedef NSString* (^SFSDKUserAgentCreationBlock)(NSString *qualifier);
 
 @protocol SalesforceSDKManagerDelegate <NSObject>
 
@@ -104,7 +68,12 @@ typedef NSString* (^SFSDKUserAgentCreationBlock)(NSString *qualifier);
  including the orchestration of authentication, passcode displaying, and management of app
  backgrounding and foregrounding state.
  */
-@interface SalesforceSDKManager : NSObject
+@interface SalesforceSDKManager : NSObject <SFAuthenticationManagerDelegate>
+
+/**
+ The class instance to be used to instantiate the singleton.
+ */
++ (void)setInstanceClass:(Class)className;
 
 /**
  @return The singleton instance of the SDK Manager.
@@ -118,10 +87,11 @@ typedef NSString* (^SFSDKUserAgentCreationBlock)(NSString *qualifier);
  */
 @property (nonatomic, readonly) BOOL isLaunching;
 
+
 /**
- Whether or not the SDK is currently in the middle of a launch process.
+ App type (native, hybrid or react native)
  */
-@property (nonatomic, readonly) BOOL isNative;
+@property (nonatomic, readonly) SFAppType appType;
 
 /**
  The Connected App ID configured for this application.

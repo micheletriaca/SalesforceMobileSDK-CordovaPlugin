@@ -39,7 +39,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.salesforce.androidsdk.accounts.UserAccount;
-import com.salesforce.androidsdk.smartstore.app.SalesforceSDKManagerWithSmartStore;
+import com.salesforce.androidsdk.smartstore.app.SmartStoreSDKManager;
 import com.salesforce.androidsdk.smartstore.store.IndexSpec;
 import com.salesforce.androidsdk.smartstore.store.QuerySpec;
 import com.salesforce.androidsdk.smartstore.store.SmartStore;
@@ -107,7 +107,7 @@ public class CacheManager {
      */
     public static synchronized CacheManager getInstance(UserAccount account, String communityId) {
         if (account == null) {
-            account = SalesforceSDKManagerWithSmartStore.getInstance().getUserAccountManager().getCurrentUser();
+            account = SmartStoreSDKManager.getInstance().getUserAccountManager().getCurrentUser();
         }
         if (account == null) {
             return null;
@@ -154,7 +154,7 @@ public class CacheManager {
      */
     public static synchronized void softReset(UserAccount account, String communityId) {
         if (account == null) {
-            account = SalesforceSDKManagerWithSmartStore.getInstance().getUserAccountManager().getCurrentUser();
+            account = SmartStoreSDKManager.getInstance().getUserAccountManager().getCurrentUser();
         }
         if (account != null) {
             String uniqueId = account.getUserId();
@@ -192,7 +192,7 @@ public class CacheManager {
      */
     public static synchronized void hardReset(UserAccount account, String communityId) {
         if (account == null) {
-            account = SalesforceSDKManagerWithSmartStore.getInstance().getUserAccountManager().getCurrentUser();
+            account = SmartStoreSDKManager.getInstance().getUserAccountManager().getCurrentUser();
         }
         if (account != null) {
             String uniqueId = account.getUserId();
@@ -305,7 +305,7 @@ public class CacheManager {
                 return 0;
             }
             final QuerySpec querySpec = QuerySpec.buildExactQuerySpec(cacheType,
-            		CACHE_KEY, cacheKey, 1);
+            		CACHE_KEY, cacheKey, null, null, 1);
             final JSONArray results = smartStore.query(querySpec, 0);
             if (results != null && results.length() > 0) {
                 final JSONObject jObj = results.optJSONObject(0);
@@ -352,7 +352,7 @@ public class CacheManager {
         // Falls back on smart store cache if in memory cache is empty.
         try {
             final QuerySpec querySpec = QuerySpec.buildExactQuerySpec(cacheType,
-            		CACHE_KEY, cacheKey, 1);
+            		CACHE_KEY, cacheKey, null, null, 1);
             final JSONArray results = smartStore.query(querySpec, 0);
             if (results != null && results.length() > 0) {
             	final JSONObject jObj = results.optJSONObject(0);
@@ -416,7 +416,7 @@ public class CacheManager {
         // Falls back on smart store cache if in memory cache is empty.
         try {
             final QuerySpec querySpec = QuerySpec.buildExactQuerySpec(cacheType,
-            		CACHE_KEY, cacheKey, 1);
+            		CACHE_KEY, cacheKey, null, null, 1);
             final JSONArray results = smartStore.query(querySpec, 0);
             if (results != null && results.length() > 0) {
             	final JSONObject jObj = results.optJSONObject(0);
@@ -480,7 +480,7 @@ public class CacheManager {
         // Falls back on smart store cache if in memory cache is empty.
         try {
             final QuerySpec querySpec = QuerySpec.buildExactQuerySpec(cacheType,
-            		CACHE_KEY, cacheKey, 1);
+            		CACHE_KEY, cacheKey, null, null, 1);
             final JSONArray results = smartStore.query(querySpec, 0);
             if (results != null && results.length() > 0) {
             	final JSONObject jObj = results.optJSONObject(0);
